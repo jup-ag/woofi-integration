@@ -445,6 +445,10 @@ impl Amm for WoofiSwap {
         unimplemented!()
     }
 
+    fn get_accounts_len(&self) -> usize {
+        17
+    }
+
     fn clone_amm(&self) -> Box<dyn Amm + Send + Sync> {
         Box::new(self.clone())
     }
