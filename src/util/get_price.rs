@@ -6,10 +6,11 @@ use anchor_lang::{
 };
 use anyhow::{Context, Result};
 use jupiter_amm_interface::ClockRef;
+use solana_sdk::clock::Clock;
 
 use crate::{constants::*, errors::ErrorCode, state::wooracle::*};
 
-use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
+pub use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
 pub struct GetPriceResult {
@@ -31,11 +32,18 @@ pub fn get_price_impl<'info>(
     price_update: &PriceUpdateV2,
     quote_price_update: &PriceUpdateV2,
 ) -> Result<GetPriceResult> {
-    let now = clock.unix_timestamp.load(Ordering::Relaxed);
+    let unix_timestamp = clock.unix_timestamp.load(Ordering::Relaxed);
 
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp,
+    };
     let pyth_result = price_update
         .get_price_no_older_than(
-            now,
+            &clock,
             oracle.maximum_age,
             &oracle.feed_account.key().to_bytes(),
         )
@@ -44,7 +52,7 @@ pub fn get_price_impl<'info>(
 
     let quote_price_result = quote_price_update
         .get_price_no_older_than(
-            now,
+            &clock,
             oracle.maximum_age,
             &oracle.quote_feed_account.key().to_bytes(),
         )
@@ -64,7 +72,7 @@ pub fn get_price_impl<'info>(
     let wo_timestamp = oracle.updated_at;
     let bound = oracle.bound as u128;
 
-    let wo_feasible = clo_price != 0 && now <= (wo_timestamp + oracle.stale_duration);
+    let wo_feasible = clo_price != 0 && unix_timestamp <= (wo_timestamp + oracle.stale_duration);
 
     // Safe math for price bound checks
     let lower_bound = ONE_E18_U128

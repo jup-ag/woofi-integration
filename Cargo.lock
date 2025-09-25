@@ -2745,19 +2745,20 @@ dependencies = [
 
 [[package]]
 name = "pyth-solana-receiver-sdk"
-version = "0.3.2"
-source = "git+https://github.com/jup-ag/pyth-crosschain.git?rev=3025d84fba2846fff86589269b40ada950edaad5#3025d84fba2846fff86589269b40ada950edaad5"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66596ab94606146630358bbf8b7187ac7353b766ab92028ecec7478a79a6059d"
 dependencies = [
  "anchor-lang",
  "hex",
  "pythnet-sdk",
- "solana-program",
 ]
 
 [[package]]
 name = "pythnet-sdk"
 version = "2.3.1"
-source = "git+https://github.com/jup-ag/pyth-crosschain.git?rev=3025d84fba2846fff86589269b40ada950edaad5#3025d84fba2846fff86589269b40ada950edaad5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "498d20fd330277697aaee92f341bdabdb4695b10e05f054157a18ad8b7746a17"
 dependencies = [
  "anchor-lang",
  "bincode",
