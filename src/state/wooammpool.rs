@@ -56,7 +56,7 @@ pub struct WooAmmPool {
     pub quote_feed_account: Pubkey,
     pub quote_price_update: Pubkey,
     pub quote_woopool: Pubkey,
-    pub quote_vault: Pubkey
+    pub quote_vault: Pubkey,
 }
 
 impl WooAmmPool {
@@ -92,7 +92,7 @@ impl WooAmmPool {
         quote_feed_account: Pubkey,
         quote_price_update: Pubkey,
         quote_woopool: Pubkey,
-        quote_vault: Pubkey
+        quote_vault: Pubkey,
     ) -> Result<()> {
         self.wooammpool_bump = [bump];
         self.wooconfig = wooconfig;

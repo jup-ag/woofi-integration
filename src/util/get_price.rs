@@ -1,15 +1,14 @@
 use std::sync::atomic::Ordering;
 
 use anchor_lang::{
-    prelude::{borsh, AnchorDeserialize, AnchorSerialize},
+    prelude::{AnchorDeserialize, AnchorSerialize},
     Key,
 };
 use anyhow::{Context, Result};
 use jupiter_amm_interface::ClockRef;
-use solana_sdk::clock::Clock;
+use solana_clock::Clock;
 
 use crate::{constants::*, errors::ErrorCode, state::wooracle::*};
-
 pub use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]

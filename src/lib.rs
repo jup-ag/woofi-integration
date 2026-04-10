@@ -1,5 +1,4 @@
-use anchor_lang::{declare_id, prelude::AccountMeta, AccountDeserialize};
-use anchor_spl::token::spl_token::state::Account;
+use anchor_lang::{declare_id, AccountDeserialize};
 /*
 
 ░██╗░░░░░░░██╗░█████╗░░█████╗░░░░░░░███████╗██╗
@@ -36,18 +35,22 @@ use anyhow::{anyhow, Context, Result};
 
 use constants::ONE_E5_U128;
 use errors::ErrorCode;
-use solana_sdk::{program_pack::Pack, pubkey::Pubkey, sysvar};
+use solana_clock::sysvar::ID as CLOCK_SYSVAR_ID;
+use solana_instruction::AccountMeta;
+use solana_program_pack::Pack;
+use solana_pubkey_v3::Pubkey;
+use spl_token_interface::state::Account;
 use state::{WooAmmPool, WooConfig, WooPool, Wooracle};
 use std::cmp::max;
 use util::{
-    balance, checked_mul_div_round_up, get_price, swap_math, Decimals, GetStateResult
+    balance, checked_mul_div_round_up, get_price, swap_math, Decimals, GetStateResult,
+    PriceUpdateV2,
 };
 
 use jupiter_amm_interface::{
-    try_get_account_data, AccountMap, Amm, AmmContext, ClockRef, KeyedAccount, Quote, QuoteParams, SwapAndAccountMetas, SwapParams
+    try_get_account_data, AccountMap, Amm, AmmContext, ClockRef, KeyedAccount, Quote, QuoteParams,
+    SwapAndAccountMetas, SwapParams,
 };
-
-use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 mod constants;
 mod errors;
@@ -105,30 +108,31 @@ impl Amm for WoofiSwap {
     }
 
     fn from_keyed_account(keyed_account: &KeyedAccount, amm_context: &AmmContext) -> Result<Self> {
-        let program_id = id();
+        let program_id = id().to_bytes().into();
 
-        let woo_amm_pool = &WooAmmPool::try_deserialize(&mut keyed_account.account.data.as_slice())?;
+        let woo_amm_pool =
+            &WooAmmPool::try_deserialize(&mut keyed_account.account.data.as_slice())?;
 
-        let wooconfig = woo_amm_pool.wooconfig;
-        let token_a_mint = woo_amm_pool.token_mint_a;
-        let token_a_wooracle = woo_amm_pool.wooracle_a;
-        let token_a_woopool = woo_amm_pool.woopool_a;
-        let token_a_vault = woo_amm_pool.token_vault_a;
-        let token_a_feed_account = woo_amm_pool.feed_account_a;
-        let token_a_price_update = woo_amm_pool.price_update_a;
-        
-        let token_b_mint = woo_amm_pool.token_mint_b;
-        let token_b_wooracle = woo_amm_pool.wooracle_b;
-        let token_b_woopool = woo_amm_pool.woopool_b;
-        let token_b_vault = woo_amm_pool.token_vault_b;
-        let token_b_feed_account = woo_amm_pool.feed_account_b;
-        let token_b_price_update = woo_amm_pool.price_update_b;
+        let wooconfig = woo_amm_pool.wooconfig.to_bytes().into();
+        let token_a_mint = woo_amm_pool.token_mint_a.to_bytes().into();
+        let token_a_wooracle = woo_amm_pool.wooracle_a.to_bytes().into();
+        let token_a_woopool = woo_amm_pool.woopool_a.to_bytes().into();
+        let token_a_vault = woo_amm_pool.token_vault_a.to_bytes().into();
+        let token_a_feed_account = woo_amm_pool.feed_account_a.to_bytes().into();
+        let token_a_price_update = woo_amm_pool.price_update_a.to_bytes().into();
 
-        let usdc_mint = woo_amm_pool.quote_token_mint;
-        let usdc_price_update = woo_amm_pool.quote_price_update;
-        let usdc_feed_account = woo_amm_pool.quote_feed_account;
-        let usdc_woopool = woo_amm_pool.quote_woopool;
-        let usdc_vault = woo_amm_pool.quote_vault;
+        let token_b_mint = woo_amm_pool.token_mint_b.to_bytes().into();
+        let token_b_wooracle = woo_amm_pool.wooracle_b.to_bytes().into();
+        let token_b_woopool = woo_amm_pool.woopool_b.to_bytes().into();
+        let token_b_vault = woo_amm_pool.token_vault_b.to_bytes().into();
+        let token_b_feed_account = woo_amm_pool.feed_account_b.to_bytes().into();
+        let token_b_price_update = woo_amm_pool.price_update_b.to_bytes().into();
+
+        let usdc_mint = woo_amm_pool.quote_token_mint.to_bytes().into();
+        let usdc_price_update = woo_amm_pool.quote_price_update.to_bytes().into();
+        let usdc_feed_account = woo_amm_pool.quote_feed_account.to_bytes().into();
+        let usdc_woopool = woo_amm_pool.quote_woopool.to_bytes().into();
+        let usdc_vault = woo_amm_pool.quote_vault.to_bytes().into();
 
         Ok(WoofiSwap {
             key: keyed_account.key,
@@ -163,7 +167,7 @@ impl Amm for WoofiSwap {
             woopool_b: None,
             token_b_balance: None,
             usdc_balance: None,
-            clock_ref: amm_context.clock_ref.clone(),       
+            clock_ref: amm_context.clock_ref.clone(),
         })
     }
 
@@ -191,7 +195,7 @@ impl Amm for WoofiSwap {
             self.token_b_price_update,
             self.token_b_vault,
             self.usdc_vault,
-            sysvar::clock::ID,
+            CLOCK_SYSVAR_ID,
         ]
     }
 
@@ -265,9 +269,7 @@ impl Amm for WoofiSwap {
         let get_token_balance = |token_vault, woopool| {
             try_get_account_data(account_map, token_vault)
                 .ok()
-                .and_then(|account_data| {
-                    Account::unpack(account_data).ok()
-                })
+                .and_then(|account_data| Account::unpack(account_data).ok())
                 .and_then(|token_account| {
                     if token_account.is_frozen() {
                         None
@@ -299,7 +301,8 @@ impl Amm for WoofiSwap {
             return Err(anyhow!("Woofi is paused"));
         }
 
-        let (decimals_from,
+        let (
+            decimals_from,
             state_from,
             woopool_from,
             decimals_to,
@@ -307,7 +310,7 @@ impl Amm for WoofiSwap {
             woopool_to,
             token_from_balance,
             token_to_balance,
-            usdc_balance
+            usdc_balance,
         ) = {
             if self.token_a_mint == quote_params.input_mint {
                 (
@@ -319,7 +322,7 @@ impl Amm for WoofiSwap {
                     self.woopool_b.as_ref().context("Missing woopool_b")?,
                     self.token_a_balance.context("Missing token_b_balance")?,
                     self.token_b_balance.context("Missing token_b_balance")?,
-                    self.usdc_balance.context("Missing usdc_balance")?
+                    self.usdc_balance.context("Missing usdc_balance")?,
                 )
             } else {
                 (
@@ -331,7 +334,7 @@ impl Amm for WoofiSwap {
                     self.woopool_a.as_ref().context("Missing woopool_a")?,
                     self.token_b_balance.context("Missing token_b_balance")?,
                     self.token_a_balance.context("Missing token_a_balance")?,
-                    self.usdc_balance.context("Missing usdc_balance")?
+                    self.usdc_balance.context("Missing usdc_balance")?,
                 )
             }
         };
@@ -339,44 +342,44 @@ impl Amm for WoofiSwap {
         let in_amount = quote_params.amount as u128;
 
         if in_amount <= woopool_from.min_swap_amount {
-            return
-                Ok(Quote {
-                    fee_pct: self.fee_rate.into(),
-                    in_amount: in_amount as u64,
-                    out_amount: 0,
-                    fee_amount: 0,
-                    fee_mint: self.usdc_mint,
-                    ..Quote::default()
-                });
+            return Ok(Quote {
+                fee_pct: self.fee_rate.into(),
+                in_amount: in_amount as u64,
+                out_amount: 0,
+                fee_amount: 0,
+                fee_mint: self.usdc_mint,
+                ..Quote::default()
+            });
         }
 
-        let woopool_from_after = token_from_balance.checked_add(in_amount).context("computation overflow")?;
-        if  woopool_from_after > woopool_from.cap_bal {
+        let woopool_from_after = token_from_balance
+            .checked_add(in_amount)
+            .context("computation overflow")?;
+        if woopool_from_after > woopool_from.cap_bal {
             return Err(ErrorCode::BalanceCapExceeds.into());
         }
 
-        let usdc_amount: u128 = 
-            if quote_params.input_mint == self.usdc_mint {
-                in_amount
-            } else {
-                let (_usdc_amount, _) = swap_math::calc_quote_amount_sell_base(
-                    in_amount,
-                    woopool_from,
-                    decimals_from,
-                    state_from,
-                )?;
+        let usdc_amount: u128 = if quote_params.input_mint == self.usdc_mint {
+            in_amount
+        } else {
+            let (_usdc_amount, _) = swap_math::calc_quote_amount_sell_base(
+                in_amount,
+                woopool_from,
+                decimals_from,
+                state_from,
+            )?;
 
-                _usdc_amount
-            };
+            _usdc_amount
+        };
 
         let swap_fee = checked_mul_div_round_up(usdc_amount, self.fee_rate as u128, ONE_E5_U128)?;
         let usdc_amount_after_fee = usdc_amount
             .checked_sub(swap_fee)
             .ok_or(ErrorCode::MathOverflow)?;
 
-        let check_usdc_amount = 
+        let check_usdc_amount =
             // sell base
-            if woopool_to.token_mint == self.usdc_mint {
+            if woopool_to.token_mint.to_bytes() == self.usdc_mint.to_bytes() {
                 usdc_amount
             }
             // sell quote/ base to base 
@@ -388,18 +391,17 @@ impl Amm for WoofiSwap {
             return Err(ErrorCode::NotEnoughOut.into());
         }
 
-        let to_amount: u128 = 
-            if quote_params.output_mint == self.usdc_mint {
-                usdc_amount_after_fee
-            } else {
-                let (_to_amount, _) = swap_math::calc_base_amount_sell_quote(
-                    usdc_amount_after_fee,
-                    woopool_to,
-                    decimals_to,
-                    state_to,
-                )?;
-                _to_amount
-            };
+        let to_amount: u128 = if quote_params.output_mint == self.usdc_mint {
+            usdc_amount_after_fee
+        } else {
+            let (_to_amount, _) = swap_math::calc_base_amount_sell_quote(
+                usdc_amount_after_fee,
+                woopool_to,
+                decimals_to,
+                state_to,
+            )?;
+            _to_amount
+        };
 
         if token_to_balance < to_amount {
             return Err(ErrorCode::NotEnoughOut.into());
@@ -416,9 +418,9 @@ impl Amm for WoofiSwap {
     }
 
     fn get_swap_and_account_metas(&self, swap_params: &SwapParams) -> Result<SwapAndAccountMetas> {
-        let account_metas = vec![
+        let _account_metas = vec![
             AccountMeta::new(self.wooconfig, false),
-            AccountMeta::new_readonly(spl_token::ID, false),
+            AccountMeta::new_readonly(spl_token_interface::ID.to_bytes().into(), false),
             AccountMeta::new(swap_params.token_transfer_authority, true),
             AccountMeta::new(self.token_a_wooracle, false),
             AccountMeta::new(self.token_a_woopool, false),
@@ -445,11 +447,11 @@ impl Amm for WoofiSwap {
         unimplemented!()
     }
 
-    fn get_accounts_len(&self) -> usize {
-        17
-    }
-
     fn clone_amm(&self) -> Box<dyn Amm + Send + Sync> {
         Box::new(self.clone())
+    }
+
+    fn get_accounts_len(&self) -> usize {
+        16
     }
 }

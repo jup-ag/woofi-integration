@@ -31,7 +31,7 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-use anchor_lang::prelude::{account, borsh, AnchorDeserialize, AnchorSerialize, InitSpace, Pubkey};
+use anchor_lang::prelude::{account, AnchorDeserialize, AnchorSerialize, InitSpace, Pubkey};
 use anchor_lang::Discriminator;
 #[account]
 #[derive(InitSpace)]
