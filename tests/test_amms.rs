@@ -8,9 +8,8 @@ use solana_account::Account as JupiterAccount;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_clock::sysvar::ID as CLOCK_SYSVAR_ID;
 use solana_clock::Clock as JupiterClock;
-use solana_pubkey::Pubkey as AnchorPubkey;
-use solana_pubkey_v3::Pubkey as JupiterPubkey;
-use solana_pubkey_v3::Pubkey as RpcPubkey;
+use solana_pubkey::Pubkey as JupiterPubkey;
+use solana_pubkey::Pubkey as RpcPubkey;
 use woofi_jupiter::{
     util::{get_wooammpool_address, get_wooconfig_address, SOL, USDC},
     WoofiSwap,

@@ -38,7 +38,7 @@ use errors::ErrorCode;
 use solana_clock::sysvar::ID as CLOCK_SYSVAR_ID;
 use solana_instruction::AccountMeta;
 use solana_program_pack::Pack;
-use solana_pubkey_v3::Pubkey;
+use solana_pubkey::Pubkey;
 use spl_token_interface::state::Account;
 use state::{WooAmmPool, WooConfig, WooPool, Wooracle};
 use std::cmp::max;
